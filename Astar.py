@@ -1,7 +1,8 @@
 import heapq
+import math
 from AstarNode import AstarNode
 
-def a_star(initial, goal):
+def a_star(initial, goal, heuristic="manhattan"):
 
     frontier = []
 
@@ -9,11 +10,11 @@ def a_star(initial, goal):
     best_scores = {}
     best_scores[hash_state(initial)] = 0
 
-    # choosing heuristic 
-    h = h_manhattan
+    h_func = h_manhattan if heuristic == "manhattan" else h_euclidean
+
     start = AstarNode(state=initial, 
                       g_score=0,
-                      h_score=h(initial))
+                      h_score=h_func(initial, goal))
 
     # push node to heap
     heapq.heappush(frontier, start)
@@ -31,7 +32,12 @@ def a_star(initial, goal):
 
         new_states = generate_states(node.state)
         for new_state in new_states:
-            new_state_node = AstarNode(state=new_state, g_score=node.g_score+1, h_score=h(new_state), parent=node)
+            new_state_node = AstarNode(
+                state=new_state,
+                g_score=node.g_score + 1,
+                h_score=h_func(new_state, goal),
+                parent=node,
+            )
 
             # if score is better than that of old node (or if entry is not present) update it
             # else let node go
@@ -89,17 +95,41 @@ def generate_states(state: list):
 
     return states
 
-def h_manhattan(state):
+def h_manhattan(state, goal):
     h = 0
-    # sum of absolute distance between current state and goal
-    for i in range(0, 9):
-        h += abs(i - state[i])
+    for index, tile in enumerate(state):
+        if tile == 0:
+            continue
+        goal_index = goal.index(tile)
+        h += abs(index // 3 - goal_index // 3)
+        h += abs(index % 3 - goal_index % 3)
+    return h
+
+def h_euclidean(state, goal):
+    h = 0.0
+    for index, tile in enumerate(state):
+        if tile == 0:
+            continue
+        goal_index = goal.index(tile)
+        x1, y1 = index % 3, index // 3
+        x2, y2 = goal_index % 3, goal_index // 3
+        h += math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
     return h
 
 
 if __name__=='__main__':
-    result = a_star([1,2,5,3,4,0,6,7,8], [0,1,2,3,4,5,6,7,8])
-    print(result.state)
-    print(result.g_score)
-    print(result.h_score)
-    print(result.f_score)
+    result = a_star([1,2,5,3,4,0,6,7,8], [0,1,2,3,4,5,6,7,8], heuristic="manhattan")
+    if result is None:
+        print("No solution found.")
+    else:
+        path = []
+        while result is not None:
+            path.append(result)
+            result = result.parent
+
+        for step, node in enumerate(reversed(path)):
+            state = ",".join(map(str, node.state))
+            print(
+                f"Step {step}: {state} | "
+                f"g={node.g_score}, h={node.h_score}, f={node.f_score}"
+            )
